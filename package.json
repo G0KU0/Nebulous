@@ -1,7 +1,7 @@
 {
-  "name": "nebulous-evolution-pro",
-  "version": "1.0.0",
-  "description": "Nebulous klón animált skinekkel és MongoDB támogatással",
+  "name": "nebulous-pro-3d",
+  "version": "1.1.0",
+  "description": "Nebulous Clone with 3D Animated Skins and MongoDB",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
