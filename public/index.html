@@ -3,57 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nebulous Evolution - Animált Skinek</title>
+    <title>Nebulous Evolution - 3D Animated</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #020617; color: white; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Inter', sans-serif; color: white; }
         canvas { display: block; cursor: crosshair; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .skin-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .skin-card:hover:not(.locked) { transform: translateY(-5px) scale(1.05); }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-    <!-- LOBBY ÉS REGISZTRÁCIÓ -->
-    <div id="lobby" class="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center z-50 p-6">
-        <div class="bg-slate-900 border border-white/10 rounded-3xl p-8 max-w-4xl w-full shadow-2xl grid md:grid-cols-2 gap-10">
-            <div class="space-y-6 text-center md:text-left">
-                <h1 class="text-5xl font-black italic bg-gradient-to-r from-blue-400 to-indigo-600 bg-clip-text text-transparent">NEBULOUS EVO</h1>
-                <p class="text-slate-500 text-sm">Regisztrálj, gyűjts XP-t és oldd fel az animált skineket!</p>
-                
-                <div class="space-y-3">
-                    <input id="username" type="text" placeholder="Felhasználónév" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition-all">
-                    <input id="password" type="password" placeholder="Jelszó" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition-all">
-                    <button onclick="handleAuth()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-lg shadow-lg shadow-blue-500/20 transition-all active:scale-95">JÁTÉK INDÍTÁSA</button>
+    <!-- LOBBY -->
+    <div id="lobby" class="fixed inset-0 bg-black/80 backdrop-blur-2xl flex items-center justify-center z-50 p-6">
+        <div class="bg-zinc-900 border border-white/10 rounded-[40px] p-10 max-w-5xl w-full shadow-[0_0_100px_rgba(0,0,0,0.5)] grid md:grid-cols-2 gap-12 overflow-hidden">
+            
+            <div class="flex flex-col justify-center space-y-8">
+                <div>
+                    <h1 class="text-6xl font-black italic tracking-tighter bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">NEBULOUS PRO</h1>
+                    <p class="text-zinc-500 font-medium mt-2">Valódi 3D-s skinek, szintek és globális mentés.</p>
                 </div>
 
-                <div id="statsPanel" class="hidden bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
-                    <div class="flex justify-between text-[10px] font-bold text-slate-400">
-                        <span id="lvlText">SZINT: 1</span>
-                        <span id="xpText">XP: 0</span>
+                <div class="space-y-4">
+                    <input id="username" type="text" placeholder="Felhasználónév" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-blue-500 transition-all text-lg font-bold">
+                    <input id="password" type="password" placeholder="Jelszó" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-blue-500 transition-all text-lg font-bold">
+                    <button onclick="auth()" class="w-full py-5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl font-black text-xl hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-blue-500/20">BELÉPÉS / JÁTÉK</button>
+                </div>
+
+                <div id="profileBox" class="hidden bg-white/5 p-6 rounded-3xl border border-white/10 space-y-3">
+                    <div class="flex justify-between items-end">
+                        <span id="pLvl" class="text-3xl font-black text-blue-400">LVL 1</span>
+                        <span id="pXP" class="text-xs font-bold text-zinc-500">0 XP</span>
                     </div>
-                    <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
-                        <div id="xpBar" class="h-full bg-blue-500 w-0 transition-all duration-1000"></div>
+                    <div class="h-3 bg-zinc-800 rounded-full overflow-hidden">
+                        <div id="pBar" class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 w-0 transition-all duration-1000"></div>
                     </div>
                 </div>
             </div>
 
             <!-- SKIN SHOP -->
-            <div class="bg-black/20 p-6 rounded-3xl border border-white/5">
-                <h3 class="text-slate-500 font-bold uppercase text-[10px] tracking-widest mb-4">Animált Skinek</h3>
-                <div id="skinGrid" class="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    <!-- JS generálja -->
+            <div class="bg-black/40 p-8 rounded-[32px] border border-white/5 flex flex-col h-[500px]">
+                <h3 class="text-zinc-400 font-black uppercase text-xs tracking-widest mb-6">3D Skin Választó</h3>
+                <div id="skinGrid" class="grid grid-cols-2 gap-4 overflow-y-auto pr-2 custom-scroll">
+                    <!-- Dinamikus skinek -->
                 </div>
             </div>
         </div>
     </div>
 
     <!-- HUD -->
-    <div id="hud" class="fixed top-6 left-6 pointer-events-none hidden">
-        <div class="bg-black/40 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
-            <div id="hudScore" class="text-3xl font-black text-blue-400">PONT: 0</div>
-            <div id="hudLevel" class="text-xs text-slate-500 font-bold">LEVEL: 1</div>
+    <div id="hud" class="fixed top-8 left-8 pointer-events-none hidden group">
+        <div class="bg-black/60 backdrop-blur-xl px-8 py-6 rounded-[32px] border border-white/10 shadow-2xl">
+            <div id="hScore" class="text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-500">0</div>
+            <div id="hLevel" class="text-xs font-black text-blue-500 uppercase tracking-widest mt-1">SZINT: 1</div>
         </div>
     </div>
 
@@ -65,104 +70,127 @@
         const ctx = canvas.getContext('2d');
 
         const SKINS = [
-            { id: 'starter', name: 'Alap', lvl: 1, colors: ['#94a3b8', '#475569'], anim: 'static' },
-            { id: 'neon', name: 'Neon', lvl: 2, colors: ['#4ade80', '#065f46'], anim: 'pulse' },
-            { id: 'magma', name: 'Magma', lvl: 5, colors: ['#f87171', '#7f1d1d'], anim: 'swirl' },
-            { id: 'vortex', name: 'Vortex', lvl: 10, colors: ['#38bdf8', '#0c4a6e'], anim: 'spiral' },
-            { id: 'galaxy', name: 'Galaxis', lvl: 20, colors: ['#818cf8', '#1e1b4b'], anim: 'swirl_fast' },
-            { id: 'solar', name: 'Nap', lvl: 35, colors: ['#fbbf24', '#78350f'], anim: 'waves' }
+            { id: 'starter', name: 'Starter', lvl: 1, c: ['#475569', '#1e293b'], mode: 'glass' },
+            { id: 'plasma', name: 'Plasma', lvl: 2, c: ['#22c55e', '#14532d'], mode: 'swirl' },
+            { id: 'ember', name: 'Ember', lvl: 5, c: ['#ef4444', '#7f1d1d'], mode: 'fire' },
+            { id: 'vortex', name: 'Vortex', lvl: 10, c: ['#0ea5e9', '#1e3a8a'], mode: 'spiral' },
+            { id: 'nebula', name: 'Nebula', lvl: 20, c: ['#a855f7', '#4c1d95'], mode: 'nebula' },
+            { id: 'sun', name: 'Solar', lvl: 35, c: ['#f59e0b', '#78350f'], mode: 'glow' },
+            { id: 'void', name: 'The Void', lvl: 50, c: ['#ffffff', '#000000'], mode: 'matrix' }
         ];
 
-        let myProfile = null;
-        let selectedSkin = 'starter';
-        let gameState = { players: {}, food: [] };
-        let mousePos = { x: 0, y: 0 };
+        let myProfile = null, selectedSkinId = 'starter', gameState = { players: {}, food: [] };
+        let mouse = { x: 0, y: 0 };
 
-        function updateSkinShop() {
+        function updateShop() {
             const grid = document.getElementById('skinGrid');
             grid.innerHTML = '';
             SKINS.forEach(s => {
                 const locked = myProfile ? myProfile.level < s.lvl : s.lvl > 1;
-                const btn = document.createElement('button');
-                btn.className = `p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${selectedSkin === s.id ? 'border-blue-500 bg-blue-500/10' : 'border-white/5 bg-white/5'} ${locked ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:scale-105'}`;
-                btn.onclick = () => { if(!locked) { selectedSkin = s.id; updateSkinShop(); } };
-                btn.innerHTML = `
-                    <div class="w-12 h-12 rounded-full" style="background: linear-gradient(135deg, ${s.colors[0]}, ${s.colors[1]})"></div>
-                    <div class="text-[9px] font-bold uppercase">${s.name}</div>
-                    <div class="text-[8px] text-slate-500">LVL ${s.lvl}</div>
+                const active = selectedSkinId === s.id;
+                const card = document.createElement('div');
+                card.className = `skin-card p-6 rounded-3xl border-2 flex flex-col items-center gap-3 relative ${active ? 'border-blue-500 bg-blue-500/10' : 'border-white/5 bg-white/10'} ${locked ? 'locked opacity-30 grayscale cursor-not-allowed' : 'cursor-pointer'}`;
+                
+                if(!locked) card.onclick = () => { selectedSkinId = s.id; socket.emit('change_skin', s.id); updateShop(); };
+                
+                card.innerHTML = `
+                    <div class="w-16 h-16 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.1)]" style="background: radial-gradient(circle at 30% 30%, ${s.c[0]}, ${s.c[1]})"></div>
+                    <div class="text-center">
+                        <div class="text-[11px] font-black uppercase text-white">${s.name}</div>
+                        <div class="text-[9px] font-bold text-zinc-500">LEVEL ${s.lvl}</div>
+                    </div>
                 `;
-                grid.appendChild(btn);
+                grid.appendChild(card);
             });
         }
-        updateSkinShop();
+        updateShop();
 
-        function handleAuth() {
+        function auth() {
             const u = document.getElementById('username').value;
             const p = document.getElementById('password').value;
             if(!u || !p) return;
-            socket.emit('auth', { username: u, password: p, skinId: selectedSkin });
+            socket.emit('auth', { username: u, password: p });
         }
 
         socket.on('auth_success', (p) => {
             myProfile = p;
+            selectedSkinId = p.skinId;
             document.getElementById('lobby').classList.add('hidden');
             document.getElementById('hud').classList.remove('hidden');
-            document.getElementById('statsPanel').classList.remove('hidden');
-            updateSkinShop();
+            document.getElementById('profileBox').classList.remove('hidden');
+            document.getElementById('pLvl').innerText = `LVL ${p.level}`;
+            updateShop();
         });
 
         socket.on('game_state', (s) => {
             gameState = s;
             const me = s.players[socket.id];
             if(me) {
-                document.getElementById('hudScore').innerText = `PONT: ${Math.floor(me.score)}`;
-                document.getElementById('hudLevel').innerText = `LEVEL: ${me.level}`;
-                document.getElementById('lvlText').innerText = `SZINT: ${me.level}`;
-                document.getElementById('xpText').innerText = `XP: ${me.xp}`;
-                const nextLvlXP = Math.pow(me.level, 2) * 200;
-                document.getElementById('xpBar').style.width = `${(me.xp / nextLvlXP) * 100}%`;
+                document.getElementById('hScore').innerText = Math.floor(me.score);
+                document.getElementById('hLevel').innerText = `SZINT: ${me.level}`;
+                const nextXP = Math.pow(me.level, 2) * 200;
+                document.getElementById('pBar').style.width = `${(me.xp / nextXP) * 100}%`;
+                document.getElementById('pXP').innerText = `${me.xp} XP`;
             }
         });
 
-        function drawCell(x, y, r, p, t) {
-            const skin = SKINS.find(s => s.id === p.skinId) || SKINS[0];
+        // --- 3D RENDERING ---
+        function draw3DCell(ctx, x, y, r, p, t) {
+            const s = SKINS.find(sk => sk.id === p.skinId) || SKINS[0];
             ctx.save();
             ctx.translate(x, y);
+
+            // 1. Árnyék a térhatáshoz
+            ctx.shadowBlur = r/2;
+            ctx.shadowColor = s.c[0] + '88';
+
+            // 2. Maszkolás
             ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.clip();
 
-            // Animációk
-            if(skin.anim === 'swirl' || skin.anim === 'swirl_fast') {
-                const speed = skin.anim === 'swirl_fast' ? 0.005 : 0.002;
-                ctx.rotate(t * speed);
-                const grad = ctx.createLinearGradient(-r, -r, r, r);
-                grad.addColorStop(0, skin.colors[0]); grad.addColorStop(1, skin.colors[1]);
-                ctx.fillStyle = grad; ctx.fillRect(-r, -r, r*2, r*2);
-                ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,r,0,Math.PI/2); ctx.fill();
-            } else if(skin.anim === 'pulse') {
-                const s = 1 + Math.sin(t * 0.005) * 0.1;
-                ctx.scale(s, s);
-                const grad = ctx.createRadialGradient(0,0,r*0.2,0,0,r);
-                grad.addColorStop(0, skin.colors[0]); grad.addColorStop(1, skin.colors[1]);
-                ctx.fillStyle = grad; ctx.fillRect(-r, -r, r*2, r*2);
-            } else if(skin.anim === 'spiral') {
-                ctx.fillStyle = skin.colors[1]; ctx.fillRect(-r, -r, r*2, r*2);
-                ctx.rotate(t * 0.003);
-                ctx.fillStyle = skin.colors[0];
-                for(let i=0; i<6; i++) {
-                    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,r*1.5, i*Math.PI/3, (i+0.4)*Math.PI/3); ctx.fill();
+            // 3. Animált rétegek
+            if(s.mode === 'swirl' || s.mode === 'nebula') {
+                ctx.rotate(t * (s.mode === 'nebula' ? 0.001 : 0.003));
+                const g = ctx.createLinearGradient(-r, -r, r, r);
+                g.addColorStop(0, s.c[0]); g.addColorStop(1, s.c[1]);
+                ctx.fillStyle = g; ctx.fillRect(-r, -r, r*2, r*2);
+                
+                // Extra örvény réteg
+                ctx.rotate(t * 0.002);
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, r*1.2, 0, Math.PI/2); ctx.fill();
+            } else if(s.mode === 'fire') {
+                const shift = Math.sin(t*0.01) * r/4;
+                const g = ctx.createRadialGradient(0, shift, r*0.1, 0, 0, r);
+                g.addColorStop(0, '#fff'); g.addColorStop(0.3, s.c[0]); g.addColorStop(1, s.c[1]);
+                ctx.fillStyle = g; ctx.fillRect(-r, -r, r*2, r*2);
+            } else if(s.mode === 'spiral') {
+                ctx.fillStyle = s.c[1]; ctx.fillRect(-r,-r,r*2,r*2);
+                ctx.rotate(t * 0.005);
+                ctx.fillStyle = s.c[0];
+                for(let i=0; i<8; i++){
+                    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,r*2, i*Math.PI/4, (i+0.3)*Math.PI/4); ctx.fill();
                 }
             } else {
-                ctx.fillStyle = skin.colors[0]; ctx.fillRect(-r, -r, r*2, r*2);
+                const g = ctx.createRadialGradient(-r/3, -r/3, r/10, 0, 0, r);
+                g.addColorStop(0, s.c[0]); g.addColorStop(1, s.c[1]);
+                ctx.fillStyle = g; ctx.fillRect(-r, -r, r*2, r*2);
             }
 
+            // 4. Glossy Highlight (3D csillanás)
+            const shine = ctx.createRadialGradient(-r/2.5, -r/2.5, r/20, -r/2.5, -r/2.5, r/1.5);
+            shine.addColorStop(0, 'rgba(255,255,255,0.4)');
+            shine.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = shine; ctx.fillRect(-r, -r, r*2, r*2);
+
             ctx.restore();
+
+            // 5. Külső keret és Text
             ctx.strokeStyle = 'white'; ctx.lineWidth = Math.max(2, r/20);
             ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke();
             
-            ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.font = `bold ${r/2.5}px Arial`;
-            ctx.fillText(p.username, x, y);
-            ctx.font = `${r/4}px Arial`; ctx.fillText(`Lv.${p.level}`, x, y + r/2);
+            ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.shadowBlur = 10; ctx.shadowColor = 'black';
+            ctx.font = `black ${r/2.2}px Arial`; ctx.fillText(p.username, x, y);
+            ctx.font = `bold ${r/4}px Arial`; ctx.fillText(`LVL ${p.level}`, x, y + r/1.8);
         }
 
         function loop(t) {
@@ -170,30 +198,32 @@
             const me = gameState.players[socket.id];
             if(!me) { requestAnimationFrame(loop); return; }
 
-            ctx.fillStyle = '#020617'; ctx.fillRect(0,0, canvas.width, canvas.height);
+            ctx.fillStyle = '#050505'; ctx.fillRect(0,0, canvas.width, canvas.height);
             ctx.save(); ctx.translate(canvas.width/2 - me.blobs[0].x, canvas.height/2 - me.blobs[0].y);
 
-            // Rács
-            ctx.strokeStyle = '#1e293b';
-            for(let i=0; i<=4000; i+=100) {
-                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 4000); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(4000, i); ctx.stroke();
+            // Deep Space Grid
+            ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+            for(let i=0; i<=5000; i+=200) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 5000); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(5000, i); ctx.stroke();
             }
 
             gameState.food.forEach(f => {
+                ctx.shadowBlur = 10; ctx.shadowColor = f.c;
                 ctx.fillStyle = f.c; ctx.beginPath(); ctx.arc(f.x, f.y, 6, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 0;
             });
 
             Object.values(gameState.players).forEach(p => {
-                p.blobs.forEach(b => drawCell(b.x, b.y, b.r, p, t));
+                p.blobs.forEach(b => draw3DCell(ctx, b.x, b.y, b.r, p, t));
             });
 
             ctx.restore();
-            socket.emit('update_input', { mx: mousePos.x, my: mousePos.y, vw: canvas.width, vh: canvas.height });
+            socket.emit('update_input', { mx: mouse.x, my: mouse.y, vw: canvas.width, vh: canvas.height });
             requestAnimationFrame(loop);
         }
 
-        window.onmousemove = (e) => mousePos = { x: e.clientX, y: e.clientY };
+        window.onmousemove = (e) => mouse = { x: e.clientX, y: e.clientY };
         loop(0);
     </script>
 </body>
