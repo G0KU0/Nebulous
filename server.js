@@ -9,35 +9,34 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// Statikus fájlok kiszolgálása a 'public' mappából
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- MONGODB CSATLAKOZÁS ---
-const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nebulous_db';
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('Sikeres MongoDB kapcsolat!'))
-    .catch(err => console.error('MongoDB hiba:', err));
+// --- MONGODB KAPCSOLAT ---
+const MONGO_URI = process.env.MONGODB_URI;
 
-// Játékos séma definiálása
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('✅ Adatbázis csatlakoztatva!'))
+    .catch(err => console.error('❌ MongoDB hiba:', err));
+
+// --- JÁTÉKOS MODELL (Mentett adatok) ---
 const playerSchema = new mongoose.Schema({
     username: { type: String, unique: true, required: true },
     password: { type: String, required: true },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
-    skinId: { type: String, default: 'starter' },
-    highScore: { type: Number, default: 0 }
+    highScore: { type: Number, default: 0 },
+    currentSkinId: { type: String, default: 'starter' }
 });
 const Player = mongoose.model('Player', playerSchema);
 
-// --- JÁTÉK MOTOR ADATOK ---
-const MAP_SIZE = 4000;
-let players = {}; 
+// --- JÁTÉK ÁLLAPOT ---
+const MAP_SIZE = 5000;
+let players = {};
 let food = [];
 
-// Étel generálása
-function spawnFood(count = 1) {
-    const colors = ['#ff4d4d', '#4dff4d', '#4d4dff', '#ffff4d', '#ff4dff', '#4dffff'];
-    for(let i = 0; i < count; i++) {
+function spawnFood(count = 10) {
+    const colors = ['#ff0055', '#00ff55', '#0055ff', '#ffff00', '#ff00ff', '#00ffff'];
+    for(let i=0; i<count; i++) {
         food.push({
             id: Math.random(),
             x: Math.random() * MAP_SIZE,
@@ -46,34 +45,31 @@ function spawnFood(count = 1) {
         });
     }
 }
-spawnFood(500);
+spawnFood(600);
 
-// --- HÁLÓZATI ESEMÉNYEK ---
+// --- HÁLÓZATI LOGIKA ---
 io.on('connection', (socket) => {
-    // Belépés és Adatbázis szinkronizáció
     socket.on('auth', async (data) => {
         try {
             let user = await Player.findOne({ username: data.username });
             if (!user) {
-                // Új profil létrehozása
                 user = await Player.create({ 
                     username: data.username, 
                     password: data.password,
-                    skinId: data.skinId || 'starter'
+                    currentSkinId: 'starter'
                 });
             } else if (user.password !== data.password) {
-                return socket.emit('auth_error', 'Hibás jelszó!');
+                return socket.emit('auth_error', 'Helytelen jelszó!');
             }
 
-            // Játékos adatok betöltése a memóriába
             players[socket.id] = {
                 id: socket.id,
                 dbId: user._id,
                 username: user.username,
                 xp: user.xp,
                 level: user.level,
-                skinId: data.skinId || user.skinId,
-                blobs: [{ x: Math.random() * MAP_SIZE, y: Math.random() * MAP_SIZE, r: 25 }],
+                skinId: user.currentSkinId,
+                blobs: [{ x: Math.random()*MAP_SIZE, y: Math.random()*MAP_SIZE, r: 30 }],
                 score: 0
             };
 
@@ -81,14 +77,13 @@ io.on('connection', (socket) => {
                 username: user.username,
                 xp: user.xp,
                 level: user.level,
-                skinId: players[socket.id].skinId
+                skinId: user.currentSkinId
             });
-        } catch (err) {
+        } catch (e) {
             socket.emit('auth_error', 'Szerver hiba történt.');
         }
     });
 
-    // Mozgás és ütközés kezelése
     socket.on('update_input', (data) => {
         const p = players[socket.id];
         if (!p) return;
@@ -96,56 +91,56 @@ io.on('connection', (socket) => {
         p.blobs.forEach(blob => {
             const dx = data.mx - (data.vw / 2);
             const dy = data.my - (data.vh / 2);
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const speed = Math.max(1, 8 - (blob.r / 60));
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const speed = Math.max(1.2, 9 - (blob.r / 50));
 
-            if (dist > 10) {
-                blob.x += (dx / dist) * speed;
-                blob.y += (dy / dist) * speed;
+            if (dist > 15) {
+                blob.x += (dx/dist) * speed;
+                blob.y += (dy/dist) * speed;
             }
-
             blob.x = Math.max(0, Math.min(MAP_SIZE, blob.x));
             blob.y = Math.max(0, Math.min(MAP_SIZE, blob.y));
 
-            // Étel evés logika
+            // Evés
             food = food.filter(f => {
-                const d = Math.sqrt((f.x - blob.x) ** 2 + (f.y - blob.y) ** 2);
+                const d = Math.sqrt((f.x-blob.x)**2 + (f.y-blob.y)**2);
                 if (d < blob.r) {
-                    blob.r += 0.25;
-                    p.xp += 2;
+                    blob.r += 0.3;
+                    p.xp += 3;
                     p.score += 1;
                     return false;
                 }
                 return true;
             });
         });
-        if (food.length < 500) spawnFood(5);
+        if(food.length < 600) spawnFood(5);
     });
 
-    // Kilépés és XP mentés
+    socket.on('change_skin', async (skinId) => {
+        if (players[socket.id]) {
+            players[socket.id].skinId = skinId;
+            await Player.findByIdAndUpdate(players[socket.id].dbId, { currentSkinId: skinId });
+        }
+    });
+
     socket.on('disconnect', async () => {
         if (players[socket.id]) {
             const p = players[socket.id];
-            const newLevel = Math.floor(Math.sqrt(p.xp / 200)) + 1;
-            try {
-                await Player.findByIdAndUpdate(p.dbId, {
-                    xp: p.xp,
-                    level: newLevel,
-                    skinId: p.skinId
-                });
-            } catch (err) {
-                console.error('Mentési hiba:', err);
-            }
+            const finalLvl = Math.floor(Math.sqrt(p.xp / 200)) + 1;
+            await Player.findByIdAndUpdate(p.dbId, {
+                xp: p.xp,
+                level: finalLvl,
+                highScore: Math.max(p.score, 0)
+            });
             delete players[socket.id];
         }
     });
 });
 
-// Frissítés küldése 30 FPS-sel
 setInterval(() => {
     io.emit('game_state', { players, food });
 }, 33);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Szerver fut a ${PORT} porton`));
+server.listen(PORT, () => console.log(`Nebulous 3D szerver fut: ${PORT}`));
 
